@@ -71,10 +71,10 @@ try {
                 $dias_restantes = calcular_dias_habiles($fecha_actual, $fecha_vencimiento);
 
                 // Definir color de alerta
-                if ($dias_restantes <= 0) {
+                if ($dias_restantes <= 1) {
                     $color = 'red'; // Vencida
                     $titulo_alerta = 'Vencida';
-                } elseif ($dias_restantes <= 3) {
+                } elseif ($dias_restantes <=2) {
                     $color = 'gold'; // Por vencer
                     $titulo_alerta = 'Por vencer';
                 } else {

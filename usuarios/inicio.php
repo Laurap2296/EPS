@@ -1,10 +1,11 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ../login.php');
+if (!isset($_SESSION['rol']) || !in_array($_SESSION['rol'], ['usuario', 'invitado'])) {
+    header("Location: ../login.php");
     exit;
 }
 ?>
+
 
 <div style="padding: 20px; font-family: 'Segoe UI', sans-serif;">
     <style>
@@ -38,12 +39,12 @@ if (!isset($_SESSION['usuario_id'])) {
     if (isset($_SESSION['usuario'])) {
         // Si es un usuario autenticado
         $nombre = $_SESSION['usuario']['nombre'];
-    } elseif (isset($_SESSION['invitado'])) {
+    } elseif (isset($_SESSION['invitados'])) {
         // Si es un invitado autenticado
-        $nombre = $_SESSION['invitado']['nombre'];
+        $nombre = $_SESSION['invitados']['nombre'];
     } else {
         // Si no hay sesión activa
-        $nombre = 'Invitado';
+        $nombre = 'Invitados';
     }
     ?>
     <?php include '../template/encabezado.php'; ?>

@@ -1,6 +1,7 @@
 <?php
 // archivo: backend/login_funcionario.php
 session_start();
+
 require_once 'conexion.php';
 
 $documento = $_POST['documento'] ?? '';

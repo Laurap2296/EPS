@@ -1,207 +1,230 @@
+<?php
+session_start();
+require '../backend/conexion.php';
+require '../template/encabezado.php';
+
+// Variables filtro con valores por defecto o recibidos por GET
+$filtro_ano = $_GET['ano'] ?? date('Y');
+$filtro_mes = $_GET['mes'] ?? '';
+$filtro_tipo = $_GET['tipo'] ?? '';
+
+// Preparar condiciones de filtro para la consulta
+$where = "WHERE 1=1 ";
+$params = [];
+
+if ($filtro_ano) {
+    $where .= " AND YEAR(fecha_solicitud) = :ano ";
+    $params[':ano'] = $filtro_ano;
+}
+
+if ($filtro_mes) {
+    $where .= " AND MONTH(fecha_solicitud) = :mes ";
+    $params[':mes'] = $filtro_mes;
+}
+
+if ($filtro_tipo) {
+    $where .= " AND tipo_solicitud = :tipo ";
+    $params[':tipo'] = $filtro_tipo;
+}
+
+// Consulta PQRS filtrada
+$stmt = $pdo->prepare("SELECT tipo_solicitud AS tipo, COUNT(*) AS cantidad FROM pqrs $where GROUP BY tipo_solicitud");
+$stmt->execute($params);
+$pqrs_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Consulta encuesta (no tiene fecha o tipo, si quieres agregarlo también se puede modificar)
+$stmt2 = $pdo->prepare("SELECT satisfaccion, COUNT(*) AS cantidad FROM respuesta_encuesta GROUP BY satisfaccion");
+$stmt2->execute();
+$encuesta_data = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+
+// Preparar datos para gráficos JS
+$tipos = [];
+$cantidades_pqrs = [];
+foreach ($pqrs_data as $row) {
+    $tipos[] = $row['tipo'];
+    $cantidades_pqrs[] = (int)$row['cantidad'];
+}
+
+$satisfacciones = [];
+$cantidades_encuesta = [];
+foreach ($encuesta_data as $row) {
+    $satisfacciones[] = $row['satisfaccion'];
+    $cantidades_encuesta[] = (int)$row['cantidad'];
+}
+
+// Obtener lista de tipos para el filtro (únicos en BD)
+$stmtTipos = $pdo->query("SELECT DISTINCT tipo_solicitud FROM pqrs");
+$lista_tipos = $stmtTipos->fetchAll(PDO::FETCH_COLUMN);
+
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <title>Reportes PQRS y Encuestas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="p-4">
-    <?php include '../template/encabezado.php'; ?>
-
-<h3>Reportes PQRS y Encuestas</h3>
-
-<div class="mb-3 row">
-    <label for="tipo_solicitud" class="col-sm-2 col-form-label">Tipo de Solicitud</label>
-    <div class="col-sm-3">
-        <select id="tipo_solicitud" class="form-select">
-            <option value="Todas">Todas</option>
-            <option value="Petición">Petición</option>
-            <option value="Queja">Queja</option>
-            <option value="Reclamo">Reclamo</option>
-            <option value="Sugerencia">Sugerencia</option>
-        </select>
-    </div>
-    <label for="mes" class="col-sm-1 col-form-label">Mes</label>
-    <div class="col-sm-2">
-        <select id="mes" class="form-select">
-            <option value="Todos">Todos</option>
-            <option value="1">Enero</option>
-            <option value="2">Febrero</option>
-            <option value="3">Marzo</option>
-            <option value="4">Abril</option>
-            <option value="5">Mayo</option>
-            <option value="6">Junio</option>
-            <option value="7">Julio</option>
-            <option value="8">Agosto</option>
-            <option value="9">Septiembre</option>
-            <option value="10">Octubre</option>
-            <option value="11">Noviembre</option>
-            <option value="12">Diciembre</option>
-        </select>
-    </div>
-    <label for="anio" class="col-sm-1 col-form-label">Año</label>
-    <div class="col-sm-2">
-        <select id="anio" class="form-select">
-            <option value="Todos">Todos</option>
-            <option value="2023">2023</option>
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
-        </select>
-    </div>
-</div>
-
-<div class="mb-3">
-    <button id="mostrarReporte" class="btn btn-primary">Mostrar Reporte</button>
-</div>
-
-<hr/>
-
-<h4>Gráfico PQRS por Tipo</h4>
-<canvas id="graficoPQRS" height="100"></canvas>
-
-<hr/>
-
-<h4>Tabla PQRS</h4>
-<table id="tablaPQRS" class="table table-striped">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Tipo Solicitud</th>
-            <th>Motivo</th>
-            <th>Fecha Solicitud</th>
-            <th>Estado</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-<hr/>
-
-<h4>Gráfico Encuestas</h4>
-<canvas id="graficoEncuestas" height="100"></canvas>
-
-<hr/>
-
-<h4>Tabla Encuestas</h4>
-<table id="tablaEncuestas" class="table table-striped">
-    <thead>
-        <tr>
-            <th>ID Encuesta</th>
-            <th>Calificación</th>
-            <th>Fecha Encuesta</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-<script>
-$(document).ready(function() {
-    let chartPQRS, chartEncuestas;
-
-    function cargarReporte() {
-        let tipo = $('#tipo_solicitud').val();
-        let mes = $('#mes').val();
-        let anio = $('#anio').val();
-
-        $.ajax({
-            url: '../backend/get_reportes.php',
-            method: 'POST',
-            data: { tipo_solicitud: tipo, mes: mes, anio: anio },
-            dataType: 'json',
-            success: function(data) {
-                // Cargar tabla PQRS
-                let tbodyPQRS = $('#tablaPQRS tbody');
-                tbodyPQRS.empty();
-                if(data.pqrs && data.pqrs.length > 0){
-                    data.pqrs.forEach(p => {
-                        tbodyPQRS.append(`<tr>
-                            <td>${p.id}</td>
-                            <td>${p.tipo_solicitud}</td>
-                            <td>${p.motivo}</td>
-                            <td>${p.fecha_solicitud}</td>
-                            <td>${p.estado}</td>
-                        </tr>`);
-                    });
-                } else {
-                    tbodyPQRS.append('<tr><td colspan="5" class="text-center">No hay datos</td></tr>');
-                }
-
-                // Graficar PQRS
-                let ctxPQRS = document.getElementById('graficoPQRS').getContext('2d');
-                if(chartPQRS) chartPQRS.destroy();
-                chartPQRS = new Chart(ctxPQRS, {
-                    type: 'bar',
-                    data: {
-                        labels: data.graficoPQRS.tipos || [],
-                        datasets: [{
-                            label: 'Cantidad',
-                            data: data.graficoPQRS.cantidades || [],
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
-                });
-
-                // Cargar tabla Encuestas
-                let tbodyEnc = $('#tablaEncuestas tbody');
-                tbodyEnc.empty();
-                if(data.encuestas && data.encuestas.length > 0){
-                    data.encuestas.forEach(e => {
-                        tbodyEnc.append(`<tr>
-                            <td>${e.id}</td>
-                            <td>${e.calificacion}</td>
-                            <td>${e.fecha_encuesta}</td>
-                        </tr>`);
-                    });
-                } else {
-                    tbodyEnc.append('<tr><td colspan="3" class="text-center">No hay datos</td></tr>');
-                }
-
-                // Graficar Encuestas
-                let ctxEnc = document.getElementById('graficoEncuestas').getContext('2d');
-                if(chartEncuestas) chartEncuestas.destroy();
-                chartEncuestas = new Chart(ctxEnc, {
-                    type: 'pie',
-                    data: {
-                        labels: data.graficoEncuestas.calificaciones || [],
-                        datasets: [{
-                            label: 'Cantidad',
-                            data: data.graficoEncuestas.cantidades || [],
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 0.6)',
-                                'rgba(54, 162, 235, 0.6)',
-                                'rgba(255, 206, 86, 0.6)',
-                                'rgba(75, 192, 192, 0.6)',
-                                'rgba(153, 102, 255, 0.6)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true
-                    }
-                });
-            },
-            error: function(xhr, status, error) {
-                alert("Error al cargar los datos: " + error);
-            }
-        });
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reportes PQRS y Encuestas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  <style>
+    canvas {
+      max-width: 100%;
+      height: 300px !important;
     }
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <h2 class="mb-4">Reportes PQRS y Encuestas</h2>
 
-    $('#mostrarReporte').click(function(){
-        cargarReporte();
+    <!-- Formulario de filtros -->
+    <form method="GET" class="row g-3 mb-4 align-items-end">
+      <div class="col-md-3">
+        <label for="ano" class="form-label">Año</label>
+        <select name="ano" id="ano" class="form-select">
+          <?php 
+          $anio_actual = date('Y');
+          for ($i = $anio_actual; $i >= $anio_actual - 10; $i--): ?>
+            <option value="<?= $i ?>" <?= $i == $filtro_ano ? 'selected' : '' ?>><?= $i ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label for="mes" class="form-label">Mes</label>
+        <select name="mes" id="mes" class="form-select">
+          <option value="" <?= $filtro_mes == '' ? 'selected' : '' ?>>Todos</option>
+          <?php 
+          for ($m=1; $m<=12; $m++):
+            $nombre_mes = date('F', mktime(0,0,0,$m,1));
+          ?>
+            <option value="<?= $m ?>" <?= $m == $filtro_mes ? 'selected' : '' ?>><?= ucfirst($nombre_mes) ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label for="tipo" class="form-label">Tipo de Solicitud</label>
+        <select name="tipo" id="tipo" class="form-select">
+          <option value="" <?= $filtro_tipo == '' ? 'selected' : '' ?>>Todos</option>
+          <?php foreach ($lista_tipos as $tipo): ?>
+            <option value="<?= htmlspecialchars($tipo) ?>" <?= $tipo == $filtro_tipo ? 'selected' : '' ?>><?= htmlspecialchars($tipo) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+      </div>
+    </form>
+
+    <div class="mb-3">
+      <!-- Pasar filtros a la generación PDF -->
+      <a href="../backend/generar_pdf_reportes.php?ano=<?= urlencode($filtro_ano) ?>&mes=<?= urlencode($filtro_mes) ?>&tipo=<?= urlencode($filtro_tipo) ?>" class="btn btn-danger me-2" target="_blank">
+        <i class="bi bi-file-pdf"></i> Generar PDF
+      </a>
+      <a href="../backend/exportar_excel.php?ano=<?= urlencode($filtro_ano) ?>&mes=<?= urlencode($filtro_mes) ?>&tipo=<?= urlencode($filtro_tipo) ?>" class="btn btn-success" target="_blank">
+        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+      </a>
+    </div>
+
+    <!-- Tabla PQRS -->
+    <h4>Tabla PQRS por Tipo</h4>
+    <table class="table table-striped table-bordered table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($pqrs_data as $row): ?>
+          <tr>
+            <td><?= htmlspecialchars($row['tipo']) ?></td>
+            <td><?= htmlspecialchars($row['cantidad']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <!-- Tabla Encuesta -->
+    <h4>Tabla de Encuestas por Satisfacción</h4>
+    <table class="table table-striped table-bordered table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>Satisfacción</th>
+          <th>Cantidad</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($encuesta_data as $row): ?>
+          <tr>
+            <td><?= htmlspecialchars($row['satisfaccion']) ?></td>
+            <td><?= htmlspecialchars($row['cantidad']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <!-- Gráficos -->
+    <div class="row mt-4">
+      <div class="col-md-6 mb-4">
+        <h5>Gráfico PQRS por Tipo</h5>
+        <canvas id="graficoPQRS"></canvas>
+      </div>
+      <div class="col-md-6 mb-4">
+        <h5>Gráfico Encuesta de Satisfacción</h5>
+        <canvas id="graficoEncuesta"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const tipos = <?= json_encode($tipos) ?>;
+    const cantidadesPQRS = <?= json_encode($cantidades_pqrs) ?>;
+    const satisfacciones = <?= json_encode($satisfacciones) ?>;
+    const cantidadesEncuesta = <?= json_encode($cantidades_encuesta) ?>;
+
+    const ctxPQRS = document.getElementById('graficoPQRS').getContext('2d');
+    new Chart(ctxPQRS, {
+      type: 'bar',
+      data: {
+        labels: tipos,
+        datasets: [{
+          label: 'Cantidad',
+          data: cantidadesPQRS,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
     });
 
-    // Carga inicial
-    cargarReporte();
-});
-</script>
+    const ctxEncuesta = document.getElementById('graficoEncuesta').getContext('2d');
+    new Chart(ctxEncuesta, {
+      type: 'pie',
+      data: {
+        labels: satisfacciones,
+        datasets: [{
+          label: 'Satisfacción',
+          data: cantidadesEncuesta,
+          backgroundColor: [
+            'rgba(75, 192, 192, 0.7)', 
+            'rgba(153, 102, 255, 0.7)', 
+            'rgba(255, 99, 132, 0.7)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  </script>
 
+<?php include '../template/pie.php'; ?>
 </body>
 </html>

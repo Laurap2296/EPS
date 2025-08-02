@@ -57,7 +57,7 @@ $pqrs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <select name="estado" id="estado" class="form-select">
                 <option value="">Todos</option>
                 <option value="pendiente" <?= $estado == 'pendiente' ? 'selected' : '' ?>>Pendiente</option>
-                <option value="respondido" <?= $estado == 'respondido' ? 'selected' : '' ?>>Respondido</option>
+                <option value="respondida" <?= $estado == 'respondida' ? 'selected' : '' ?>>Respondida</option>
             </select>
         </div>
         <div class="col-md-3">

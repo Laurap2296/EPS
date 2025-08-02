@@ -1,7 +1,7 @@
 <?php
 session_start();
 require 'conexion.php';
-require 'generar_pdf_pqrs.php';
+require 'generar_pdf_pqrs.php'; // Archivo con función para generar PDF individual
 
 $tipo_solicitud = $_POST['tipo_solicitud'];
 $motivo = $_POST['motivo'];
@@ -19,10 +19,10 @@ if (isset($_FILES['archivo']) && $_FILES['archivo']['error'] == 0) {
     move_uploaded_file($_FILES['archivo']['tmp_name'], '../uploads/' . $archivo_nombre);
 }
 
-// 👉 GENERAR PDF Y obtener nombre del archivo
+// Generar PDF y obtener nombre del archivo
 $pdf_nombre = generarPDFPQRS($tipo_solicitud, $motivo, $descripcion, $tipo_emisor, $usuario, $archivo_nombre);
 
-// 👉 INSERTAR en base de datos
+// Insertar en base de datos
 $stmt = $pdo->prepare("INSERT INTO pqrs (tipo_solicitud, motivo, descripcion, archivo, fecha_solicitud, estado, tipo_emisor, id_emisor, pdf) 
 VALUES (:tipo, :motivo, :descripcion, :archivo, :fecha, :estado, :tipo_emisor, :id_emisor, :pdf)");
 
@@ -35,9 +35,10 @@ $stmt->execute([
     ':estado' => $estado,
     ':tipo_emisor' => $tipo_emisor,
     ':id_emisor' => $id_emisor,
-    ':pdf' => $pdf_nombre  // AQUÍ SE USA LO QUE GENERÓ LA FUNCIÓN
+    ':pdf' => $pdf_nombre
 ]);
 
-header('Location: ../usuarios/mis_pqrs.php');
+// Redireccionar con mensaje de éxito
+header('Location: ../usuarios/crear_pqrs.php?exito=1');
 exit;
 ?>

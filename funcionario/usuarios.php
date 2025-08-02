@@ -7,6 +7,7 @@ if (!isset($_SESSION['funcionario'])) {
 
 include('../backend/conexion.php');
 
+
 // Parámetros de paginación y filtro
 $letra = isset($_GET['letra']) ? $_GET['letra'] : '';
 $pagina = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;

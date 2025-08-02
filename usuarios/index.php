@@ -40,9 +40,9 @@ if (!isset($_SESSION['usuario_id'])) {
     if (isset($_SESSION['usuario'])) {
         // Si es un usuario autenticado
         $nombre = $_SESSION['usuario']['nombre'];
-    } elseif (isset($_SESSION['invitado'])) {
+    } elseif (isset($_SESSION['invitados'])) {
         // Si es un invitado autenticado
-        $nombre = $_SESSION['invitado']['nombre'];
+        $nombre = $_SESSION['invitados']['nombre'];
     } else {
         // Si no hay sesión activa
         $nombre = 'Invitado';

@@ -1,101 +1,66 @@
 <?php
-session_start();
-if (!isset($_SESSION['funcionario'])) {
-    die("No autorizado.");
-}
-header('Content-Type: application/json');
-// ... tu código para generar array ...
-echo json_encode($resultado);
-exit;
+// backend/generar_pdf_reportes.php
 
+require_once 'conexion.php';
+require('../librerias/fpdf/fpdf.php');
 
-require_once '../librerias/fpdf/fpdf.php';
+// Consulta datos para PQRS
+$stmt = $pdo->prepare("SELECT tipo_solicitud AS tipo, COUNT(*) AS cantidad FROM pqrs GROUP BY tipo_solicitud");
+$stmt->execute();
+$pqrs_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Consulta datos para Encuesta
+$stmt2 = $pdo->prepare("SELECT satisfaccion, COUNT(*) AS cantidad FROM respuesta_encuesta GROUP BY satisfaccion");
+$stmt2->execute();
+$encuesta_data = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
 class PDF extends FPDF {
-    // Header
     function Header() {
         $this->SetFont('Arial','B',14);
-        $this->Cell(0,10,'Reporte PQRS y Encuestas - Kamkuama IPS',0,1,'C');
+        $this->Cell(0,10,'Reporte PQRS y Encuestas',0,1,'C');
         $this->Ln(5);
+    }
+    function Footer() {
+        $this->SetY(-15);
+        $this->SetFont('Arial','I',8);
+        $this->Cell(0,10,'Página '.$this->PageNo().'/{nb}',0,0,'C');
     }
 }
 
 $pdf = new PDF();
+$pdf->AliasNbPages();
 $pdf->AddPage();
-$pdf->SetFont('Arial','',12);
 
-// Datos enviados por POST: imágenes base64 de gráficos
-$imgPQRS = $_POST['imgPQRS'] ?? '';
-$imgEncuestas = $_POST['imgEncuestas'] ?? '';
-
-// Insertar gráfico PQRS
-if ($imgPQRS) {
-    // Quitar prefijo base64
-    $imgPQRSdata = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $imgPQRS));
-    $rutaImgPQRS = tempnam(sys_get_temp_dir(), 'pqrs') . '.png';
-    file_put_contents($rutaImgPQRS, $imgPQRSdata);
-    $pdf->Cell(0,10,"Gráfico PQRS por Tipo:",0,1);
-    $pdf->Image($rutaImgPQRS, null, null, 180);
-    unlink($rutaImgPQRS);
-    $pdf->Ln(10);
-}
-
-// Insertar gráfico Encuestas
-if ($imgEncuestas) {
-    $imgEncuestasData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $imgEncuestas));
-    $rutaImgEncuestas = tempnam(sys_get_temp_dir(), 'enc') . '.png';
-    file_put_contents($rutaImgEncuestas, $imgEncuestasData);
-    $pdf->Cell(0,10,"Gráfico Encuestas:",0,1);
-    $pdf->Image($rutaImgEncuestas, null, null, 180);
-    unlink($rutaImgEncuestas);
-    $pdf->Ln(10);
-}
-
-// Consultar datos para tablas con filtros recibidos del formulario (si quieres usar filtros)
-// Para simplicidad, mostramos sólo las tablas sin filtro extra
-
-require_once 'conexion.php';
-
-// PQRS tabla
-$pdf->Cell(0,10,"Tabla PQRS:",0,1);
+// Tabla PQRS
+$pdf->SetFont('Arial','B',12);
+$pdf->Cell(0,10,"Tabla PQRS por Tipo",0,1);
 $pdf->SetFont('Arial','B',10);
-$pdf->Cell(15,7,'ID',1);
-$pdf->Cell(40,7,'Tipo Solicitud',1);
-$pdf->Cell(65,7,'Motivo',1);
-$pdf->Cell(35,7,'Fecha',1);
-$pdf->Cell(25,7,'Estado',1);
+$pdf->Cell(100,7,'Tipo',1);
+$pdf->Cell(40,7,'Cantidad',1);
 $pdf->Ln();
 
-$pdf->SetFont('Arial','',9);
-$stmt = $pdo->query("SELECT id, tipo_solicitud, motivo, fecha_solicitud, estado FROM pqrs ORDER BY fecha_solicitud DESC LIMIT 50");
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $pdf->Cell(15,6,$row['id'],1);
-    $pdf->Cell(40,6,$row['tipo_solicitud'],1);
-    $pdf->Cell(65,6,substr($row['motivo'],0,40),1);
-    $pdf->Cell(35,6,$row['fecha_solicitud'],1);
-    $pdf->Cell(25,6,$row['estado'],1);
+$pdf->SetFont('Arial','',10);
+foreach($pqrs_data as $row){
+    $pdf->Cell(100,7,$row['tipo'],1);
+    $pdf->Cell(40,7,$row['cantidad'],1);
     $pdf->Ln();
 }
 
 $pdf->Ln(10);
 
-// Encuestas tabla
+// Tabla Encuesta
+$pdf->SetFont('Arial','B',12);
+$pdf->Cell(0,10,"Tabla de Encuestas por Satisfacción",0,1);
 $pdf->SetFont('Arial','B',10);
-$pdf->Cell(0,10,"Tabla Encuestas:",0,1);
-$pdf->Cell(30,7,'ID Encuesta',1);
-$pdf->Cell(40,7,'Calificación',1);
-$pdf->Cell(50,7,'Fecha Encuesta',1);
+$pdf->Cell(100,7,'Satisfacción',1);
+$pdf->Cell(40,7,'Cantidad',1);
 $pdf->Ln();
 
-$pdf->SetFont('Arial','',9);
-$stmt2 = $pdo->query("SELECT id, calificacion, fecha_encuesta FROM encuestas ORDER BY fecha_encuesta DESC LIMIT 50");
-while ($row = $stmt2->fetch(PDO::FETCH_ASSOC)) {
-    $pdf->Cell(30,6,$row['id'],1);
-    $pdf->Cell(40,6,$row['calificacion'],1);
-    $pdf->Cell(50,6,$row['fecha_encuesta'],1);
+$pdf->SetFont('Arial','',10);
+foreach($encuesta_data as $row){
+    $pdf->Cell(100,7,$row['satisfaccion'],1);
+    $pdf->Cell(40,7,$row['cantidad'],1);
     $pdf->Ln();
 }
 
-$pdf->Output('I', 'Reporte_PQRS_Encuestas.pdf');
-exit;
-?>
+$pdf->Output();

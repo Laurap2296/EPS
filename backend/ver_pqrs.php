@@ -1,70 +1,87 @@
 <?php
-// backend/ver_pqrs.php
 session_start();
 require_once 'conexion.php';
 
-// Verificamos si hay sesión (funcionario o administrador)
-if (!isset($_SESSION['funcionario_id'])) {
-    header("Location: ../login.php");
+if (!isset($_SESSION['admin']['id']) || $_SESSION['rol'] !== 'admin') {
+    header('Location: ../login.php');
     exit;
 }
 
-$stmt = $pdo->query("SELECT pq.*, us.nombre, us.apellido 
-                    FROM pqrs pq
-                    JOIN usuarios us ON pq.usuario_id = us.id 
-                    ORDER BY pq.fecha_creacion DESC");
-$pqrs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$estadoFiltro = $_GET['estado'] ?? '';
+
+$sql = "SELECT pqrs.*, f.nombre AS funcionario_nombre 
+        FROM pqrs 
+        LEFT JOIN funcionarios f ON pqrs.id_funcionario = f.id";
+
+$params = [];
+if ($estadoFiltro !== '') {
+    $sql .= " WHERE pqrs.estado = :estado";
+    $params[':estado'] = $estadoFiltro;
+}
+
+$sql .= " ORDER BY pqrs.fecha_solicitud DESC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$pqrs_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+include "encabezado.php";
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Ver PQRS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f0fdf0;
-        }
-        .container {
-            margin-top: 30px;
-        }
-        .table thead {
-            background-color: #198754;
-            color: white;
-        }
-        .table-hover tbody tr:hover {
-            background-color: #dfffe0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h3><i class="bi bi-list-check"></i> Lista de PQRS</h3>
-        <table class="table table-hover table-bordered">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Usuario</th>
-                    <th>Tipo</th>
-                    <th>Motivo</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($pqrs as $p): ?>
+
+<div class="container mt-4">
+    <h2>Lista de PQRS (Administrador)</h2>
+
+    <form method="get" class="mb-3">
+        <label for="estado">Filtrar por Estado:</label>
+        <select name="estado" id="estado" onchange="this.form.submit()" class="form-select w-auto d-inline-block">
+            <option value="">Todos</option>
+            <option value="Pendiente" <?= $estadoFiltro=='Pendiente'?'selected':'' ?>>Pendiente</option>
+            <option value="Respondida" <?= $estadoFiltro=='Respondida'?'selected':'' ?>>Respondida</option>
+        </select>
+    </form>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tipo Solicitud</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th>Funcionario</th>
+                <th>Fecha</th>
+                <th>PDF Usuario</th>
+                <th>PDF Respuesta</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (count($pqrs_list) === 0): ?>
+                <tr><td colspan="8" class="text-center">No hay PQRS.</td></tr>
+            <?php else: ?>
+                <?php foreach ($pqrs_list as $pqrs): ?>
                     <tr>
-                        <td><?= $p['id'] ?></td>
-                        <td><?= $p['nombre'] . ' ' . $p['apellido'] ?></td>
-                        <td><?= $p['tipo'] ?></td>
-                        <td><?= $p['motivo'] ?></td>
-                        <td><?= $p['fecha_creacion'] ?></td>
-                        <td><?= $p['estado'] ?></td>
+                        <td><?= htmlspecialchars($pqrs['id']) ?></td>
+                        <td><?= htmlspecialchars($pqrs['tipo_solicitud']) ?></td>
+                        <td><?= htmlspecialchars($pqrs['motivo']) ?></td>
+                        <td><?= htmlspecialchars($pqrs['estado']) ?></td>
+                        <td><?= htmlspecialchars($pqrs['funcionario_nombre'] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($pqrs['fecha_solicitud']) ?></td>
+                        <td>
+                            <?php if (!empty($pqrs['pdf'])): ?>
+                                <a href="../pdf/<?= htmlspecialchars($pqrs['pdf']) ?>" target="_blank" class="btn btn-secondary btn-sm">Ver PDF</a>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($pqrs['respuesta_pdf'])): ?>
+                                <a href="../pdf/<?= htmlspecialchars($pqrs['respuesta_pdf']) ?>" target="_blank" class="btn btn-success btn-sm">Ver PDF</a>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</body>
-</html>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</div>
