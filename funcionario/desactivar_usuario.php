@@ -7,22 +7,30 @@ if (!isset($_SESSION['funcionario'])) {
 
 include '../backend/conexion.php';
 
-if (!isset($_GET['id']) || empty($_GET['id'])) {
-    $_SESSION['error'] = "ID de usuario no especificado.";
+// Validar id y tipo
+if (!isset($_GET['id']) || empty($_GET['id']) || !isset($_GET['tipo']) || empty($_GET['tipo'])) {
+    $_SESSION['error'] = "Parámetros inválidos.";
     header("Location: usuarios.php");
     exit;
 }
 
 $id = intval($_GET['id']);
+$tipo = $_GET['tipo'];
+
+if (!in_array($tipo, ['afiliado', 'invitado'])) {
+    $_SESSION['error'] = "Tipo inválido.";
+    header("Location: usuarios.php");
+    exit;
+}
 
 try {
-    // Cambiar estado a 0 (inactivo)
-    $stmt = $pdo->prepare("UPDATE usuarios SET estado = 0 WHERE id = :id");
+    $tabla = $tipo === 'afiliado' ? 'usuarios' : 'invitados'; // O ajusta 'usuarios' a 'afiliados' si es así tu tabla
+    $stmt = $pdo->prepare("UPDATE $tabla SET estado = 0 WHERE id = :id");
     $stmt->execute([':id' => $id]);
 
-    $_SESSION['success'] = "Usuario desactivado correctamente.";
+    $_SESSION['success'] = ucfirst($tipo) . " desactivado correctamente.";
 } catch (PDOException $e) {
-    $_SESSION['error'] = "Error al desactivar usuario: " . $e->getMessage();
+    $_SESSION['error'] = "Error al desactivar: " . $e->getMessage();
 }
 
 header("Location: usuarios.php");

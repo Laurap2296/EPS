@@ -13,7 +13,7 @@ try {
     $stmt->execute([':doc' => $documento]);
     $funcionario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Verificar si el funcionario existe y la clave es correcta
+    // Verificar si el funcionario existe y la clave es correcta (clave fija 'Funcionario123')
     if ($funcionario && $clave === 'Funcionario123') {
         // Guardar sesión correctamente como 'funcionario'
         $_SESSION['funcionario'] = $funcionario;
@@ -21,14 +21,14 @@ try {
 
         // Redirigir al panel de funcionario
         header('Location: ../funcionario/index.php');
-        exit;
+        exit();
     } else {
         $_SESSION['error'] = 'Credenciales inválidas';
         header("Location: ../login.php");
-        exit;
+        exit();
     }
-} catch (Exception $e) {
+} catch (PDOException $e) {
     $_SESSION['error'] = 'Ocurrió un error: ' . $e->getMessage();
     header("Location: ../login.php");
-    exit;
+    exit();
 }

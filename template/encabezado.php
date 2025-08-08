@@ -38,7 +38,6 @@ if (isset($_SESSION['rol']) && ($_SESSION['rol'] === 'usuario' || $_SESSION['rol
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="../assets/css/estilos.css" />
     <style>
-           
         .navbar .nav-link, .navbar-brand {
             color: #fff !important;
         }
@@ -66,20 +65,13 @@ if (isset($_SESSION['rol']) && ($_SESSION['rol'] === 'usuario' || $_SESSION['rol
 </head>
 <body>
 <header class="navbar navbar-expand-lg navbar-dark" style="background-color: #2e7d32;">
-
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
             <img src="../assets/img/logo.jpg" alt="Kamkuama IPS" style="max-width: 120px;" />
         </a>
-        <button
-            class="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarNav"
-            aria-controls="navbarNav"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-        >
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
+                aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
 
@@ -105,36 +97,46 @@ if (isset($_SESSION['rol']) && ($_SESSION['rol'] === 'usuario' || $_SESSION['rol
                         </a>
                     </li>
                 <?php elseif (isset($_SESSION['rol']) && $_SESSION['rol'] === 'funcionario'): ?>
-    <li class="nav-item"><a class="nav-link" href="listar_pqrs.php">Ver PQRS</a></li>
-    <li class="nav-item"><a class="nav-link" href="notificaciones.php">Notificaciones</a></li>
-    <li class="nav-item"><a class="nav-link" href="usuarios.php">Gestión Usuarios</a></li>
-    <li class="nav-item"><a class="nav-link" href="reportes.php">Reportes</a></li>
-    <li class="nav-item"><a class="nav-link" href="ver_encuestas.php">Ver Encuestas</a></li>
-<?php endif; ?>
-
+                    <li class="nav-item"><a class="nav-link" href="index.php">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="listar_pqrs.php">Ver PQRS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="notificaciones.php">Notificaciones</a></li>
+                    <li class="nav-item"><a class="nav-link" href="usuarios.php">Gestión Usuarios</a></li>
+                    <li class="nav-item"><a class="nav-link" href="reportes.php">Reportes</a></li>
+                    <li class="nav-item"><a class="nav-link" href="ver_encuestas.php">Ver Encuestas</a></li>
+                <?php endif; ?>
             </ul>
 
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <span class="navbar-text">
-                        Bienvenid@,
-                        <?php 
-                        if (isset($_SESSION['rol']) && ($_SESSION['rol'] === 'usuario' || $_SESSION['rol'] === 'invitado')) {
-                            echo htmlspecialchars($_SESSION['usuario']['nombre'] . ' ' . ($_SESSION['usuario']['apellidos'] ?? ''));
-                        } elseif (isset($_SESSION['rol']) && $_SESSION['rol'] === 'funcionario') {
-                            echo htmlspecialchars($_SESSION['funcionario']['nombre']);
-                        } else {
-                            echo "Invitado";
-                        }
-                        ?>
-                    </span>
-                </li>
-                <li class="nav-item"><a class="nav-link" href="../backend/logout.php">Cerrar sesión</a></li>
+<ul class="navbar-nav ms-auto">
+    <?php if (isset($_SESSION['rol']) && in_array($_SESSION['rol'], ['usuario', 'invitado'])): ?>
+        <li class="nav-item">
+            <span class="navbar-text me-2">
+                Bienvenid@, <?= htmlspecialchars($_SESSION['usuario']['nombre'] . ' ' . ($_SESSION['usuario']['apellidos'] ?? '')) ?>
+            </span>
+        </li>
+    <?php endif; ?>
+
+
+
+
+               <?php if (isset($_SESSION['rol']) && in_array($_SESSION['rol'], ['usuario', 'invitado'])): ?>
+    <li class="nav-item">
+        <a class="nav-link" href="perfil.php">
+            <i class="bi bi-person-circle"></i> Mi perfil
+        </a>
+    </li>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['rol']) && in_array($_SESSION['rol'], ['usuario', 'invitado', 'funcionario'])): ?>
+    <li class="nav-item">
+        <a class="nav-link" href="../backend/logout.php">
+            <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+        </a>
+    </li>
+<?php endif; ?>
+
             </ul>
         </div>
     </div>
 </header>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>

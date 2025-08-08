@@ -11,9 +11,10 @@ try {
     $stmt->execute([':doc' => $documento]);
     $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Para usuarios, la clave debe ser igual al documento (por defecto)
     if ($usuario && $clave === $usuario['documento']) {
         $_SESSION['usuario'] = $usuario;
-        $_SESSION['usuario_id'] = $usuario['id']; // 👈 ESTA LÍNEA ES CLAVE
+        $_SESSION['usuario_id'] = $usuario['id'];
         $_SESSION['rol'] = 'usuario';
         header("Location: http://localhost/eps/usuarios/inicio.php");
         exit();
@@ -24,15 +25,16 @@ try {
     $stmt->execute([':doc' => $documento]);
     $invitado = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($invitado && $clave === $invitado['documento']) {
+    // Para invitados, la clave es la que guardaron (puede estar hasheada)
+    if ($invitado && $clave === $invitado['clave']) {
         $_SESSION['usuario'] = $invitado;
-        $_SESSION['usuario_id'] = $invitado['id']; // 👈 TAMBIÉN AQUÍ
+        $_SESSION['usuario_id'] = $invitado['id'];
         $_SESSION['rol'] = 'invitado';
         header("Location: http://localhost/eps/usuarios/index.php");
         exit();
     }
 
-    // Si no coincide
+    // Si no coincide ninguna
     $_SESSION['error'] = 'Credenciales incorrectas';
     header('Location: http://localhost/eps/login.php');
     exit();

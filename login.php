@@ -1,7 +1,5 @@
-
 <?php
 session_start();
-
 ?>
 
 <!doctype html>
@@ -42,8 +40,17 @@ session_start();
     </style>
 </head>
 <body>
-    <?php if (isset($_GET['registro']) && $_GET['registro'] === 'exitoso'): ?>
-    <div class="alert alert-success text-center">
+
+<?php
+// Mostrar mensaje de error si existe
+if (isset($_SESSION['error'])) {
+    echo '<div class="alert alert-danger text-center mx-auto" style="max-width: 500px;">' . htmlspecialchars($_SESSION['error']) . '</div>';
+    unset($_SESSION['error']);
+}
+?>
+
+<?php if (isset($_GET['registro']) && $_GET['registro'] === 'exitoso'): ?>
+    <div class="alert alert-success text-center mx-auto" style="max-width: 500px;">
         ✅ Su registro fue exitoso. Ahora puede iniciar sesión.
     </div>
 <?php endif; ?>

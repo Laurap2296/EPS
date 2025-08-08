@@ -7,8 +7,7 @@ if (!isset($_SESSION['funcionario'])) {
 
 include('../backend/conexion.php');
 
-
-// Parámetros de paginación y filtro
+// Parámetros paginación y filtro
 $letra = isset($_GET['letra']) ? $_GET['letra'] : '';
 $pagina = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
 $porPagina = 10;
@@ -23,9 +22,9 @@ if (!empty($letra)) {
     $params[':letra'] = $letra . '%';
 }
 
-// Obtener total de usuarios e invitados
+// Consultar total registros (usuarios + invitados)
 $totalQuery = $pdo->prepare("SELECT COUNT(*) FROM (
-    SELECT id, nombre, apellidos, tipo_documento, documento, correo, celular, 'usuario' AS tipo FROM usuarios
+    SELECT id, nombre, apellidos, tipo_documento, documento, correo, celular, 'afiliado' AS tipo FROM usuarios
     UNION ALL
     SELECT id, nombre, apellidos, tipo_documento, documento, correo, celular, 'invitado' AS tipo FROM invitados
 ) AS todos $where");
@@ -34,9 +33,9 @@ $totalRegistros = $totalQuery->fetchColumn();
 
 $totalPaginas = ceil($totalRegistros / $porPagina);
 
-// Obtener usuarios e invitados con paginación
+// Consultar registros paginados
 $sql = "SELECT * FROM (
-    SELECT id, nombre, apellidos, tipo_documento, documento, correo, celular, 'usuario' AS tipo FROM usuarios
+    SELECT id, nombre, apellidos, tipo_documento, documento, correo, celular, 'afiliado' AS tipo FROM usuarios
     UNION ALL
     SELECT id, nombre, apellidos, tipo_documento, documento, correo, celular, 'invitado' AS tipo FROM invitados
 ) AS todos $where ORDER BY nombre ASC LIMIT $inicio, $porPagina";
@@ -97,7 +96,7 @@ $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 </style>
 
-<h2 class="text-center">Gestión de Usuarios e Invitados</h2>
+<h2 class="text-center">Gestión de Afiliados e Invitados</h2>
 
 <div class="filtro-letras">
     Filtrar por letra:
@@ -130,16 +129,15 @@ $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?= htmlspecialchars($usuario['celular']) ?></td>
                     <td><?= ucfirst($usuario['tipo']) ?></td>
                    <td>
-    <div style="display: flex; gap: 10px;">
-        <a class="boton-editar" href="editar_usuario.php?tipo=<?= $usuario['tipo'] ?>&id=<?= $usuario['id'] ?>">Editar</a>
-        <a class="boton-desactivar" href="desactivar_usuario.php?tipo=<?= $usuario['tipo'] ?>&id=<?= $usuario['id'] ?>" onclick="return confirm('¿Estás seguro de desactivar este usuario?')">Desactivar</a>
-    </div>
-</td>
-
+                        <div style="display: flex; gap: 10px;">
+                            <a class="boton-editar" href="editar_usuario.php?tipo=<?= $usuario['tipo'] ?>&id=<?= $usuario['id'] ?>">Editar</a>
+                            <a class="boton-desactivar" href="desactivar_usuario.php?tipo=<?= $usuario['tipo'] ?>&id=<?= $usuario['id'] ?>" onclick="return confirm('¿Estás seguro de desactivar este usuario?')">Desactivar</a>
+                        </div>
+                    </td>
                 </tr>
             <?php endforeach; ?>
         <?php else: ?>
-            <tr><td colspan="7">No se encontraron usuarios o invitados.</td></tr>
+            <tr><td colspan="7">No se encontraron afiliados o invitados.</td></tr>
         <?php endif; ?>
     </tbody>
 </table>
